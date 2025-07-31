@@ -2,9 +2,9 @@
 
 ## Ubiquitous
 
-- THE SYSTEM SHALL have a backend written in Python.
-- THE SYSTEM SHALL have a frontend written using TypeScript with a Bun runtime environment.
-- THE SYSTEM SHALL be deployable locally via Docker Compose using a multi-container architecture for backend, frontend, LLM (Ollama), and database.
+- THE SYSTEM SHALL have a server written in Python.
+- THE SYSTEM SHALL have a client written using TypeScript with a Bun runtime environment.
+- THE SYSTEM SHALL be deployable locally via Docker Compose using a multi-container architecture for Server, client, LLM (Ollama), and database.
 - THE SYSTEM SHALL provide both a Web UI (React) and a CLI/TUI (Commander/Chalk) for interacting with the chatbot and knowledge management features. The CLI/TUI will be included in the MVP, the Web UI will be added to the project roadmap/backlog.
 - THE SYSTEM SHALL persist user conversations, file uploads, and project metadata in a PostgreSQL database.
 
@@ -13,13 +13,13 @@
 - WHEN a user creates a new project, THE SYSTEM SHALL enable associating conversations, files, and URLs with that project.
 - WHEN a user uploads a file, THE SYSTEM SHALL securely store the file and link it to the selected conversation/project.
 - WHEN a user references a URL, THE SYSTEM SHALL associate the reference with a specific project or conversation.
-- WHEN a user initiates a chat, THE SYSTEM SHALL route prompts through the backend to the DeepSeek model via Ollama and return results.
+- WHEN a user initiates a chat, THE SYSTEM SHALL route prompts through the Server to the DeepSeek model via Ollama and return results.
 - WHEN a user initiates a chat, THE SYSTEM SHALL persist all turns/messages in the database, linked to the correct project.
 
 ## State-driven
 
 - WHILE a conversation , THE SYSTEM SHALL persist all turns/messages in the database, linked to the correct project.
-- WHILE the backend or frontend is initializing, THE SYSTEM SHALL retry LLM/DB connectivity until healthy or until a timeout is reached.
+- WHILE the Server or client is initializing, THE SYSTEM SHALL retry LLM/DB connectivity until healthy or until a timeout is reached.
 - WHILE running in the terminal, provide the end user an intuitive TUI which is intuitive to navigate and pleasant to look at.
 
 ## Unwanted

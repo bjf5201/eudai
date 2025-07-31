@@ -3,10 +3,10 @@
 ## Architecture Overview
 
 ```txt
-+--------------------+        WebSocket/REST       +-----------+      HTTP API     +------------+
-|     Frontend       | <-------------------------->|  Backend  | <---------------> |   Ollama   |
-| (Webapp + TUI/CLI) |                             | (FastAPI) |                   | (DeepSeek) |
-+--------------------+                             +-----------+                   +------------+
++--------------------+  WebSocket/REST   +-----------+  HTTP API  +------------+
+|     Client       | <---------------->| Server   | <------------> | Ollama     |
+| (Webapp + TUI/CLI) |                   | (FastAPI) |                | (DeepSeek) |
++--------------------+                   +-----------+                +------------+
      |                                         |
      |   CLI/TUI (Commander/Chalk)             | (WS/REST: chat, files, project mgmt)
      |-----------------------\                 |
@@ -16,8 +16,8 @@
                         +-----------------------------+
 ```
 
-- **Frontend**: The combined user interface layer, containing both the **Web App** (`frontend/webapp`, React) and the **CLI/TUI** (`frontend/cli`, Commander/Chalk). Both are TypeScript, use Bun+pnpm, and share a monorepo structure.
-- **Backend**: FastAPI (Python 3.15), managed with PDM, async with PostgreSQL (asyncpg/SQLAlchemy), Alembic for migrations.
+- **Client**: The combined user interface layer, containing both the **Web App** (`Client/webapp`, React) and the **CLI/TUI** (`Client/cli`, Commander/Chalk). Both are TypeScript, use Bun+pnpm, and share a monorepo structure.
+- **Server**: FastAPI (Python 3.15), managed with PDM, async with PostgreSQL (asyncpg/SQLAlchemy), Alembic for migrations.
 - **LLM**: Ollama (container, DeepSeek model), HTTP API.
 - **Data Persistence**: PostgreSQL (docker volume).
 
@@ -25,18 +25,18 @@
 
 ## Data Flows
 
-- **WebSocket**: Frontend (webapp/TUI) <-> Backend
+- **WebSocket**: Client (webapp/TUI) <-> Server
   - Real-time chat (send/receive), streaming LLM responses.
   - Project/conversation/file updates.
 
-- **REST**: Frontend (webapp/TUI) <-> Backend
+- **REST**: Client (webapp/TUI) <-> Server
   - CRUD for users, projects, conversations, files, URLs.
   - Auth, file upload/download, initial data bootstrapping.
 
-- **Ollama API**: Backend <-> Ollama
+- **Ollama API**: Server <-> Ollama
   - HTTP, async, streaming LLM responses.
 
-- **DB**: Backend <-> PostgreSQL
+- **DB**: Server <-> PostgreSQL
   - All data persistence.
 
 ---
@@ -142,7 +142,7 @@
 
 - All components run as Docker containers (multi-stage, minimal images).
 - CPU/GPU Ollama support via compose override.
-- Backend waits for DB/Ollama (healthcheck/wait scripts).
+- Server waits for DB/Ollama (healthcheck/wait scripts).
 - Volumes for persistence (`db`, `ollama-models`, file uploads).
 - Non-root user in all containers.
 
@@ -150,8 +150,8 @@
 
 ## Testing
 
-- **Backend:** pytest, httpx for API, WebSocket test client, coverage.
-- **Frontend:** Vitest, Cypress/Playwright, Storybook for UI.
+- **Server:** pytest, httpx for API, WebSocket test client, coverage.
+- **Client:** Vitest, Cypress/Playwright, Storybook for UI.
 
 ---
 
@@ -166,23 +166,23 @@
 
 ```plaintext
 eudai/
-  frontend/
+  client/
     webapp/    # React app (web)
     cli/       # Commander/Chalk TUI/CLI
+    Dockerfile.client   # Multi-stage, Bun+TS+React+UnoCSS
     package.json
     pnpm-workspace.yaml
-  backend/     # FastAPI Python backend (PDM)
-  docker/
-    Dockerfile.backend   # Multi-stage, FastAPI+PDM
-    Dockerfile.frontend  # Multi-stage, Bun+TS+React
-    Dockerfile.gpu       # For GPU Ollama
+  server/     # FastAPI Python Server (PDM)
+    Dockerfile.server   # Multi-stage, FastAPI+PDM
+    Dockerfile.gpu      # For GPU Ollama
+  docs/
+    requirements.md      # EARS Notation
+    design.md            # Technical design (this file)
+    backlog.md           # Implementation plan
+    adr/                 # Architecture decision records
   docker-compose.yml     # Orchestration
   docker-compose.gpu.yml # GPU override
-  requirements.md        # EARS Notation
-  design.md              # Technical design (this file)
-  tasks.md               # Implementation plan
   README.md
-  adr/                   # Architecture Decision Records
 ```
 
 ---
@@ -202,17 +202,11 @@ eudai/
 
 ## Summary of Key Architecture Decisions
 
-- **Frontend** includes both webapp and CLI/TUI, with shared code and configuration.
-- **Backend** is Python (FastAPI, PDM managed), with WebSocket and REST APIs.
-- **Ollama** is integrated as a service for DeepSeek LLM, accessible via HTTP from backend.
+- **Client** includes both webapp and CLI/TUI, with shared code and configuration.
+- **Server** is Python (FastAPI, PDM managed), with WebSocket and REST APIs.
+- **Ollama** is integrated as a service for DeepSeek LLM, accessible via HTTP from Server.
 - **Data persistence** is via PostgreSQL, with Alembic for migrations.
 - **Multi-stage Docker builds** and docker-compose orchestration for security and performance.
 - **Testing and CI/CD** is first-class, using Vitest, Playwright/Cypress, Pytest, and GitHub Actions.
 
 ---
-
-## Next Steps
-
-- Draft Dockerfiles for backend and frontend
-- Draft docker-compose.yml
-- Create ADR for FastAPI backend
