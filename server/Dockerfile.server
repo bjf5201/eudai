@@ -1,0 +1,46 @@
+# ---- Builder stage ----
+FROM python:3.13-slim AS builder
+
+# Install system dependencies for build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc curl && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install PDM globally (for dependency management)
+RUN pip install pdm=2.13.4
+
+# Copy only dependency files first for better cache
+COPY pyproject.toml pdm.lock ./
+
+# Install dependencies to wheel cache directory (no dev deps yet)
+RUN pdm install --prod --no-editable --no-self --deploy
+
+# Copy application code
+COPY . .
+
+# ---- Runtime stage ----
+FROM python:3.13-slim AS runtime
+
+# Create a non-root user and switch to it
+RUN groupadd -r appuser && useradd -m -r -g appuser appuser
+
+WORKDIR /app
+
+# Copy installed dependencies and app code from builder
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /app /app
+
+# Expose server port
+EXPOSE 8000
+
+# Healthcheck for FastAPI server
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD curl -f http://localhost:8000/api/health || exit 1
+
+
+# Switch to non-root user
+USER appuser
+
+# Default command
+CMD ["pdm", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
