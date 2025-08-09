@@ -64,3 +64,9 @@
 - name: wontfix
   description: This will not be worked on
   color: ffffff
+- name: chore
+  description: Chores and miscellaneous tasks
+  color: d4c5f9
+- name: documentation
+  description: Improvements or additions to documentation
+  color: 0075ca

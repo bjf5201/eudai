@@ -19,6 +19,8 @@ categories:
     label: "refactoring"
   - title: ":lipstick: Style"
     label: "style"
+  - title: ":broom: Chores"
+    label: "chore"
   - title: ":package: Dependencies"
     labels:
       - "dependencies"
