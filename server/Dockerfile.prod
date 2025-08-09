@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.4
 
-FROM python:3.13-slim AS base
+FROM python:3.13-slim AS builder
 
 # Install system dependencies for build
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    gcc curl && \
+    build-essential curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
@@ -18,40 +18,42 @@ RUN curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VE
 
 WORKDIR /app
 
-# Install PDM and uv as the resolver/installer
-RUN pip install pdm=2.13.4 uv==0.1.43
+# ---- Builder stage ----
 
 # Copy only dependency files first for better cache
-COPY pyproject.toml pdm.toml ./
-COPY server/ ./server/
+COPY poetry.lock pyproject.toml ./
 
-# Install dependencies to wheel cache directory (no dev deps yet)
-RUN pdm install --prod --no-editable --no-self --deploy && pdm config use_uv true
-
-# Copy application code
-COPY . .
+# Install dependencies (no dev, no venv, install to /opt/venv for later copy)
+RUN poetry config virtualenvs.create false && \
+    pip install --upgrade pip && \
+    poetry install --no-interaction --no-ansi --no-root --only=main
 
 # ---- Runtime stage ----
 FROM python:3.13-slim AS runtime
 
-# Create a non-root user and switch to it
-RUN groupadd -r appuser && useradd -m -r -g appuser appuser
+# Create a non-root user
+RUN useradd -m eudai
 
 WORKDIR /app
 
-# Copy installed dependencies and app code from builder
-COPY --from=builder /usr/local /usr/local
-COPY --from=builder /app /app
+# Copy virtualenv site-packages from builder stage
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Expose server port
+# Copy application code
+COPY --chown=eudai:eudai . .
+
+# Expose port (adjust as needed)
 EXPOSE 8000
 
-# Healthcheck for FastAPI server
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD curl -f http://localhost:8000/api/health || exit 1
+# Set other environment variables if needed
+ENV POETRY_NO_INTERACTION=1
 
+# Drop root privileges
+USER eudai
 
-# Switch to non-root user
-USER appuser
+# Healthcheck (optional)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD curl --fail htt://localhost:8000/health || exit 1
 
-# Default command
-CMD ["pdm", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application
+CMD ["poetry", "main:app", "--host", "0.0.0.0", "--port", "8000"]

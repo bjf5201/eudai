@@ -1,0 +1,32 @@
+#syntax=docker/dockerfile:1.4
+
+FROM --platform=arm64 python:3.13-slim AS base
+
+ENV POETRY_VERSION=2.1.4 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    PYTHONUNBUFFERED=1
+
+# Install Poetry
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential curl && \
+    curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install ALL dependencies including dev/test dependencies
+RUN poetry install --no-root
+
+RUN groupadd -r eudai && useradd -m -r -g eudai eudai
+USER eudai
+
+# Copy only dependency files first for better cache
+COPY --chown=eudai:eudai poetry.lock pyproject.toml ./
+COPY --chown=eudai:eudai .env noxfile.py .pre-commit-config.yaml ./
+COPY --chown=eudai:eudai codecov.yaml .flake8 .darglint ./
+COPY --chown=eudai:eudai src ./src
+COPY --chown=eudai:eudai tests ./tests
+
+# Set default to run tests (override as needed)
+CMD ["poetry", "run", "pytest"]
