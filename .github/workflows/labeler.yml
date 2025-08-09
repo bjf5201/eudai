@@ -1,10 +1,8 @@
 name: Labeler
 
 on:
-  push:
-    branches:
-      - main
-      - master
+- push
+- pull_request
 
 jobs:
   labeler:
