@@ -1,0 +1,9 @@
+{
+    "python-envs.pythonProjects": [
+
+    ],
+    "python.analysis.useLibraryCodeForTypes": false,
+    "python.analysis.usePullDiagnostics": false,
+    "python.analysis.enableTroubleshootMissingImports": false,
+    "python.analysis.typeEvaluation.analyzeUnannotatedFunctions": false
+}
