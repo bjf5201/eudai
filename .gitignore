@@ -1,0 +1,6 @@
+.env
+config/*.instructions.md
+node_modules
+notes
+.github/instructions
+.github/prompts
