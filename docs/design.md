@@ -8,7 +8,7 @@
 | (Webapp + TUI/CLI) |                   | (FastAPI) |                | (DeepSeek) |
 +--------------------+                   +-----------+                +------------+
      |                                         |
-     |   CLI/TUI (Commander/Chalk)             | (WS/REST: chat, files, project mgmt)
+     |   CLI/TUI (Commander/Chalk)             | (WS: chat, REST: files, project mgmt)
      |-----------------------\                 |
                              \                 v
                         +-----------------------------+
@@ -16,8 +16,8 @@
                         +-----------------------------+
 ```
 
-- **Client**: The combined user interface layer, containing both the **Web App** (`Client/webapp`, React) and the **CLI/TUI** (`Client/cli`, Commander/Chalk). Both are TypeScript, use Bun+pnpm, and share a monorepo structure.
-- **Server**: FastAPI (Python 3.15), managed with PDM, async with PostgreSQL (asyncpg/SQLAlchemy), Alembic for migrations.
+- **Client**: The combined user interface layer, containing both the **Web App** (`client/webapp`, React) and the **CLI/TUI** (`client/cli`, Commander/Chalk). Both are TypeScript, managed as a monorepo (pnpm).
+- **Server**: FastAPI (Python 3.15), managed with **uv** for dependencies/environment, async with PostgreSQL (asyncpg/SQLAlchemy), Alembic for migrations.
 - **LLM**: Ollama (container, DeepSeek model), HTTP API.
 - **Data Persistence**: PostgreSQL (docker volume).
 
@@ -27,15 +27,12 @@
 
 - **WebSocket**: Client (webapp/TUI) <-> Server
   - Real-time chat (send/receive), streaming LLM responses.
-  - Project/conversation/file updates.
-
+  - Project/conversation/file updates if needed.
 - **REST**: Client (webapp/TUI) <-> Server
-  - CRUD for users, projects, conversations, files, URLs.
+  - CRUD for users, projects, files, URLs, instructions.
   - Auth, file upload/download, initial data bootstrapping.
-
 - **Ollama API**: Server <-> Ollama
   - HTTP, async, streaming LLM responses.
-
 - **DB**: Server <-> PostgreSQL
   - All data persistence.
 
@@ -43,7 +40,7 @@
 
 ## API Contracts
 
-### WebSocket
+### WebSocket (for real-time chat)
 
 - **Connect**: `/ws/chat`
 - **Protocol**: JSON messages, event-based.
@@ -82,44 +79,48 @@
 
 ## Database Schema (Draft)
 
-<!-- markdownlint-disable MD007 -->
 - **users**
-    - id (uuid, pk)
-    - username (unique)
-    - email (unique)
-    - password_hash
-    - created_at
+  - id (uuid, pk)
+  - username (unique)
+  - email (unique)
+  - password_hash
+  - created_at
 - **projects**
-    - id (uuid, pk)
-    - owner_id (fk -> users)
-    - name
-    - description
-    - created_at
+  - id (uuid, pk)
+  - owner_id (fk -> users)
+  - name
+  - description
+  - created_at
 - **conversations**
-    - id (uuid, pk)
-    - project_id (fk -> projects)
-    - title
-    - created_at
+  - id (uuid, pk)
+  - project_id (fk -> projects)
+  - title
+  - created_at
 - **messages**
-    - id (uuid, pk)
-    - conversation_id (fk -> conversations)
-    - sender ("user"|"llm")
-    - text
-    - timestamp
+  - id (uuid, pk)
+  - conversation_id (fk -> conversations)
+  - sender ("user"|"llm")
+  - text
+  - timestamp
 - **files**
-    - id (uuid, pk)
-    - project_id (fk -> projects)
-    - filename
-    - path
-    - uploaded_at
-    - uploaded_by (fk -> users)
+  - id (uuid, pk)
+  - project_id (fk -> projects)
+  - filename
+  - path
+  - uploaded_at
+  - uploaded_by (fk -> users)
+- **instructions**
+  - id (uuid, pk)
+  - project_id (fk -> projects)
+  - instruction_text
+  - created_at
 - **urls**
-    - id (uuid, pk)
-    - project_id (fk -> projects)
-    - url
-    - description
-    - added_by (fk -> users)
-    - created_at
+  - id (uuid, pk)
+  - project_id (fk -> projects)
+  - url
+  - description
+  - added_by (fk -> users)
+  - created_at
 
 ---
 
@@ -133,16 +134,23 @@
 
 ## Error Handling
 
-- All errors returned in `{ "type": "error", "message": "..." }` via WebSocket or as JSON via REST.
-- Healthcheck endpoint `/api/health` for orchestration (docker-compose).
+| Error Type        | Source      | Procedure                  | API Response          | Log? |
+|-------------------|-------------|----------------------------|-----------------------|------|
+| Ollama Unreachable| Backend     | Retry x3, fail gracefully  | 503 LLM unavailable   | Yes  |
+| Postgres Down     | Backend     | Fail fast                  | 503 Storage error     | Yes  |
+| File Upload Error | Backend     | Validate, return error     | 400 Bad file          | Yes  |
+| Auth Failure      | Backend     | Return error               | 401 Unauthorized      | Yes  |
+| Invalid Data      | Backend     | Validate, return error     | 400 Bad request       | Yes  |
 
 ---
 
 ## Deployment
 
 - All components run as Docker containers (multi-stage, minimal images).
-- CPU/GPU Ollama support via compose override.
-- Server waits for DB/Ollama (healthcheck/wait scripts).
+- **Backend**: Python 3.15, FastAPI, dependencies managed and run via **uv**.
+- **LLM**: Ollama container, DeepSeek R1 model.
+- **DB**: PostgreSQL container, volume for persistence.
+- Compose healthchecks and wait scripts for dependencies.
 - Volumes for persistence (`db`, `ollama-models`, file uploads).
 - Non-root user in all containers.
 
@@ -172,13 +180,13 @@ eudai/
     Dockerfile.client   # Multi-stage, Bun+TS+React+UnoCSS
     package.json
     pnpm-workspace.yaml
-  server/     # FastAPI Python Server (PDM)
-    Dockerfile.server   # Multi-stage, FastAPI+PDM
-    Dockerfile.gpu      # For GPU Ollama
+  server/     # FastAPI Python Server (uv)
+    Dockerfile.server   # Multi-stage, FastAPI+uv (NO PDM)
+    Dockerfile.gpu      # For GPU Ollama (if needed)
   docs/
     requirements.md      # EARS Notation
     design.md            # Technical design (this file)
-    backlog.md           # Implementation plan
+    tasks.md             # Implementation plan
     adr/                 # Architecture decision records
   docker-compose.yml     # Orchestration
   docker-compose.gpu.yml # GPU override
@@ -187,23 +195,10 @@ eudai/
 
 ---
 
-## Error Matrix
-
-| Scenario                   | Expected Result             | Fallback/Error                |
-|----------------------------|----------------------------|-------------------------------|
-| File upload > limit        | Reject, inform user         | 413 error                     |
-| Ollama not ready           | Error page/message          | Log + retry/backoff           |
-| DB connection loss         | Serve error/maintenance     | Log + retry/backoff           |
-| Model download slow        | Progress log, graceful wait | User notification             |
-| Disk full                  | Error on upload             | Log + maintenance alert       |
-| TUI in non-TTY             | Fallback to plain text      | Exit with message             |
-
----
-
 ## Summary of Key Architecture Decisions
 
 - **Client** includes both webapp and CLI/TUI, with shared code and configuration.
-- **Server** is Python (FastAPI, PDM managed), with WebSocket and REST APIs.
+- **Server** is Python (FastAPI, managed by uv), with WebSocket and REST APIs.
 - **Ollama** is integrated as a service for DeepSeek LLM, accessible via HTTP from Server.
 - **Data persistence** is via PostgreSQL, with Alembic for migrations.
 - **Multi-stage Docker builds** and docker-compose orchestration for security and performance.
@@ -213,7 +208,7 @@ eudai/
 <!-- ADR_START -->
 ## Architecture Decision Records (ADRs)
 
-  - [Ollama as distinct service](2025/08/2025-08-06-ollama-as-distinct-service.md)
-  - [Docker Compose vs Kubernetes](2025/08/2025-08-09_docker-compose-vs-kubernetes.md)
-  - [index](index.md)
+- [Ollama as distinct service](2025/08/2025-08-06-ollama-as-distinct-service.md)
+- [Docker Compose vs Kubernetes](2025/08/2025-08-09_docker-compose-vs-kubernetes.md)
+- [index](index.md)
 <!-- ADR_END -->
