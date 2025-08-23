@@ -1,79 +1,81 @@
 # eudai - Technical Design (Spec-Driven Workflow)
 
-## Architecture Overview
+## Architecture Overview - MVP (v 1.0.0)
 
-```txt
-+--------------------+  WebSocket/REST   +-----------+  HTTP API  +------------+
-|     Client       | <---------------->| Server   | <------------> | Ollama     |
-| (Webapp + TUI/CLI) |                   | (FastAPI) |                | (DeepSeek) |
-+--------------------+                   +-----------+                +------------+
-     |                                         |
-     |   CLI/TUI (Commander/Chalk)             | (WS: chat, REST: files, project mgmt)
-     |-----------------------\                 |
-                             \                 v
-                        +-----------------------------+
-                        |        PostgreSQL           |
-                        +-----------------------------+
-```
++--------------------+   WebSocket  +-----+   WS + REST API   +------------------+
+|     Client         | <----------> |  Server   | <---------> | AI Model         |
+| (Terminals/CLIs)   |              | (FastAPI) |             | (deepseek)       |
+|   TypeScript       |              |  Python   |             | Docker container |
++--------------------+              +-----------+             +------------------+
+     |                               |
+     |                               | (Stores chat history,contexts,etc)
+     |------------------\            |
+                         \           v
+              +------------------------+
+              |   PostgreSQL Database  |
+              +------------------------+
 
-- **Client**: The combined user interface layer, containing both the **Web App** (`client/webapp`, React) and the **CLI/TUI** (`client/cli`, Commander/Chalk). Both are TypeScript, managed as a monorepo (pnpm).
-- **Server**: FastAPI (Python 3.15), managed with **uv** for dependencies/environment, async with PostgreSQL (asyncpg/SQLAlchemy), Alembic for migrations.
-- **LLM**: Ollama (container, DeepSeek model), HTTP API.
-- **Data Persistence**: PostgreSQL (docker volume).
-
----
+- **Client**: The user interface layer located in the `client` directory. Written using `ESM` (versus `CJS` -- aka `esmodules` versus `commonjs`) and the `TypeScript` superset of `JavaScript`, the package is managed with `pnpm`.
+- **Server**: `FastAPI` (`Python 3.13`), dependencies/environment are managed with **`uv`**, async data flowing to a `PostgreSQL` database (`asyncpg`/`SQLAlchemy`), and uses `Alembic` for migrations.
+- **LLM**: `deepseek` model via `Ollama` and `docker-compose`andHTTP API.
+- **Data Persistence**: `PostgreSQL` (using a Docker volume via `docker-compose`).
 
 ## Data Flows
 
-- **WebSocket**: Client (webapp/TUI) <-> Server
-  - Real-time chat (send/receive), streaming LLM responses.
+- **WebSocket API (primary for chat/streaming)**: Client <-> Server
+  - WebSockets are the primary vehicle for real-time data flow.
+  - HTTP will be the fallback for real-time data flow in case there is an issue with the WebSocket API.
+  - Real-time chat (send/receive) and streaming LLM responses.
   - Project/conversation/file updates if needed.
-- **REST**: Client (webapp/TUI) <-> Server
+- **HTTP/REST API (fallback + async operations)**: Client <-> Server
   - CRUD for users, projects, files, URLs, instructions.
   - Auth, file upload/download, initial data bootstrapping.
-- **Ollama API**: Server <-> Ollama
-  - HTTP, async, streaming LLM responses.
-- **DB**: Server <-> PostgreSQL
+- **Database Persistence layer**: Server <-> `PostgreSQL`
   - All data persistence.
-
----
+- **Config Management**: `python-dotenv`
+  - A `.env` file stores DB connection strings, model settings, etc.
+  - `python-dotenv` automatically loads this at FastAPI startup
+  - Actual env vars can still be overridden, keeping app 12-factor compliant
 
 ## API Contracts
 
 ### WebSocket (for real-time chat)
 
-- **Connect**: `/ws/chat`
+- **Connect**: `/ws/conversations/:id`
 - **Protocol**: JSON messages, event-based.
 
 **Sample Payloads:**
 
 ```json
 // Client -> Server
-{ "type": "chat_prompt", "project_id": "proj-123", "conversation_id": "conv-456", "text": "What is eudaimonia?" }
-{ "type": "file_upload_init", "project_id": "proj-123", "filename": "doc.pdf" }
+{ "type": "user_message", "content":"..." }
 
 // Server -> Client
-{ "type": "chat_response", "conversation_id": "conv-456", "stream": true, "text": "Eudaimonia is..." }
-{ "type": "file_upload_progress", "file_id": "file-789", "progress": 0.4 }
-{ "type": "error", "message": "Invalid project ID" }
+{ "type": "delta", "content": "..." }
+{ "type": "bot_message", "message_id": "...", "content": "..."}
 ```
 
 ### REST Endpoints (Draft)
 
-| Method | Path                        | Description                          |
-|--------|-----------------------------|--------------------------------------|
-| POST   | `/api/auth/login`           | Login, returns JWT                   |
-| POST   | `/api/auth/signup`          | Create user                          |
-| GET    | `/api/projects`             | List projects                        |
-| POST   | `/api/projects`             | Create project                       |
-| GET    | `/api/projects/:id`         | Get project details                  |
-| PUT    | `/api/projects/:id`         | Update project                       |
-| DELETE | `/api/projects/:id`         | Delete project                       |
-| GET    | `/api/projects/:id/files`   | List files in project                |
-| POST   | `/api/projects/:id/files`   | Upload file (multipart)              |
-| GET    | `/api/files/:file_id`       | Download file                        |
-| GET    | `/api/conversations/:id`    | Get conversation messages            |
-| GET    | `/api/health`               | Health check                         |
+| Method | Path  | Description |
+| -- | -- | -- |
+| POST | `/api/auth/login` | Login, returns JWT |
+| POST | `/api/auth/signup` | Create user |
+| GET | `/api/projects` | List projects |
+| POST | `/api/projects` | Create project |
+| GET | `/api/projects/:id` | Get project details |
+| PUT | `/api/projects/:id` | Update project |
+| DELETE | `/api/projects/:id` | Delete project |
+| GET | `/api/projects/:id/files` | List files in project |
+| GET | `/api/projects/:id/files/:id | View project file details |
+| POST | `/api/projects/:id/files` | Upload file (multi) |
+| GET | `/api/projects/:id/conversations | List all conversations associated with a specific project |
+| GET | `/api/projects/:id/conversations/:id | View a specific conversation within a project |
+| GET | `/api/conversations` | List all conversations |
+| GET | `/api/conversations/:id` | Get conversation details |
+| GET | `/api/download/files/:file_id` | Download file |
+| GET | `/api/download/conversations/:id | Download conversation |
+| GET | `/api/health` | Health check |
 
 ---
 
