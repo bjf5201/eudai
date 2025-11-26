@@ -35,17 +35,13 @@ jobs:
       - name: Run Nox session
         run: |
           nox -s ${{ matrix.session }}
-      - name: Upgrade pip
-        run: |
-          pip install --constraint=.github/workflows/constraints.txt pip
-          pip --version
 
       - name: Upload coverage data
         if: always() && matrix.session == 'tests' && matrix.os == 'ubuntu-latest'
         uses: "actions/upload-artifact@v5.0.0"
         with:
           name: coverage-data
-          path: "server/eudai/.coverage.*"
+          path: "server/eudai/.coverage*"
 
   coverage:
     name: Coverage combine & report
