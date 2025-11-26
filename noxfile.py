@@ -80,11 +80,13 @@ def docs_build(session: nox.Session) -> None:
     if not DOCS_DIR.exists():
         session.error("docs/ directory not found at repo root.")
 
-    session.install("sphinx", "sphinx-rtd-theme")
-    session.chdir(str(PROJECT_DIR))
-    session.run("pip", "install", "-e", ".", external=True)
+    # Install package from server/eudai into this venv
+    session.run("pip", "install", "-e", "server/eudai", external=True)
 
-    session.chdir(str(DOCS_DIR.project))
+    # Install sphinx + theme
+    session.install("sphinx", "sphinx-rtd-theme")
+
+    # Build docs from repo root
     build_dir = DOCS_DIR / "_build"
     build_dir.mkdir(parents=True, exist_ok=True)
 
