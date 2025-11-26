@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Nox session
         run: |
-          nox -s ${{ matrix.session }} --python=${{ matrix.python }}
+          nox -s ${{ matrix.session }}
       - name: Upgrade pip
         run: |
           pip install --constraint=.github/workflows/constraints.txt pip
