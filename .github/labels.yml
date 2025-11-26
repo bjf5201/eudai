@@ -21,7 +21,7 @@
   color: 0366d6
 - name: documentation
   description: Improvements or additions to documentation
-  color: 0075ca
+  color: 542e9a
 - name: duplicate
   description: This issue or pull request already exists
   color: cfd3d7
