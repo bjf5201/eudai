@@ -58,6 +58,7 @@ jobs:
       - name: Install Poetry
         run: |
           pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt poetry six
           poetry --version
 
       - name: Install Nox
@@ -128,6 +129,7 @@ jobs:
       - name: Install Poetry
         run: |
           pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt poetry six
           poetry --version
 
       - name: Install Nox
