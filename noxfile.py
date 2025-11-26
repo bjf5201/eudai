@@ -25,12 +25,12 @@ def lint(session: nox.Session) -> None:
 
     # Only include tests/ if it actually exists
     paths = ["src"]
-    if Path("tests").exists():
+    if TESTS_DIR.exists():
         paths.append("tests")
 
     # Format first, then lint
-    session.run("ruff", "format", "src", "tests", external=True)
-    session.run("ruff", "check", "src", "tests", external=True)
+    session.run("ruff", "format", *paths, external=True)
+    session.run("ruff", "check", *paths, external=True)
 
 
 @nox.session
