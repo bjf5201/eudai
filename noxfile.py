@@ -7,6 +7,7 @@ nox.options.sessions = ["lint", "mypy", "tests", "docs-build"]
 
 # Paths for project layout
 PROJECT_DIR = Path("server") / "eudai"
+SRC_DIR = PROJECT_DIR / "src"
 TESTS_DIR = PROJECT_DIR / "tests"
 DOCS_DIR = Path("docs")
 
@@ -23,8 +24,8 @@ def lint(session: nox.Session) -> None:
     session.install("ruff")
 
     # Format first, then lint
-    session.run("ruff", "format", ".")
-    session.run("ruff", "check", ".")
+    session.run("ruff", "format", "src", "tests", external=true)
+    session.run("ruff", "check", "src", "tests", external=true)
 
 
 @nox.session
@@ -41,7 +42,7 @@ def mypy(session: nox.Session) -> None:
     session.install("mypy")
 
     # Start with main.py; include tests/ once it exists.
-    targets = ["main.py"]
+    targets = ["src"]
     if TESTS_DIR.exists():
         targets.append("tests")
 
@@ -66,10 +67,8 @@ def tests(session: nox.Session) -> None:
         session.log("No tests/ directory found; skipping tests session.")
         return
 
-    # Name coverage files per Python version (provided by CI via --python)
-    py_ver = session.python or "default"
-    session.env["COVERAGE_FILE"] = f".coverage.{py_ver}"
-
+    # Single coverage file for now
+    session.env["COVERAGE_FILE"] = ".coverage"
     session.run("coverage", "run", "-m", "pytest", "tests")
 
 
@@ -77,15 +76,15 @@ def tests(session: nox.Session) -> None:
 def docs_build(session: nox.Session) -> None:
     """
     Build the documentation from the top-level docs/ directory.
-
-    Assumes usage of Sphinx-style docs, adjust if different decision is made.
     """
     if not DOCS_DIR.exists():
         session.error("docs/ directory not found at repo root.")
 
     session.install("sphinx", "sphinx-rtd-theme")
+    session.chdir(str(PROJECT_DIR))
     session.run("pip", "install", "-e", ".", external=True)
 
+    session.chdir(str(DOCS_DIR.project))
     build_dir = DOCS_DIR / "_build"
     build_dir.mkdir(parents=True, exist_ok=True)
 
