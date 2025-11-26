@@ -23,9 +23,14 @@ def lint(session: nox.Session) -> None:
     session.chdir(str(PROJECT_DIR))
     session.install("ruff")
 
+    # Only include tests/ if it actually exists
+    paths = ["src"]
+    if Path("tests").exists():
+        paths.append("tests")
+
     # Format first, then lint
-    session.run("ruff", "format", "src", "tests", external=true)
-    session.run("ruff", "check", "src", "tests", external=true)
+    session.run("ruff", "format", "src", "tests", external=True)
+    session.run("ruff", "check", "src", "tests", external=True)
 
 
 @nox.session
@@ -76,9 +81,17 @@ def tests(session: nox.Session) -> None:
 def docs_build(session: nox.Session) -> None:
     """
     Build the documentation from the top-level docs/ directory.
+
+    If docs/conf.py doesn't exist yet, skip the session gracefully.
     """
     if not DOCS_DIR.exists():
-        session.error("docs/ directory not found at repo root.")
+        session.log("docs/ directory not found at repo root; skipping docs-build")
+        return
+
+    conf_py = DOCS_DIR / "conf.py"
+    if not conf_py.exists():
+        session.log("No docs/conf.py found; skipping docs-build session.")
+        return
 
     # Install package from server/eudai into this venv
     session.run("pip", "install", "-e", "server/eudai", external=True)
