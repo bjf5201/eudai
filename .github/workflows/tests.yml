@@ -55,17 +55,14 @@ jobs:
           with open(os.environ["GITHUB_ENV"], mode="a") as io:
               print(f"VIRTUALENV_PIP={pip.__version__}", file=io)
 
-      - name: Install Poetry
+      - name: Install Poetry and Nox
         run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt poetry six
-          poetry --version
-
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
+            pip install --contraint=.github/workflows/constaints.txt \
+              poetry \
+              nox \
+              nox-poetry
+            poetry --version
+            nox --version
 
       - name: Compute pre-commit cache key
         if: matrix.session == 'pre-commit'
@@ -126,17 +123,14 @@ jobs:
           pip install --constraint=.github/workflows/constraints.txt pip
           pip --version
 
-      - name: Install Poetry
+      - name: Install Poetry and Nox
         run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt poetry six
-          poetry --version
-
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
-          nox --version
+            pip install --contraint=.github/workflows/constaints.txt \
+              poetry \
+              nox \
+              nox-poetry
+            poetry --version
+            nox --version
 
       - name: Download coverage data
         uses: actions/download-artifact@v6.0.0
